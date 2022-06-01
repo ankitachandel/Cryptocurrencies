@@ -1,0 +1,46 @@
+FROM ubuntu:latest
+
+LABEL maintainer  Ankita <ankitachnadel11@gmail.com>
+RUN useradd -r bitcoin \
+  && apt-get update -y \
+  && apt-get install -y curl sudo wget nano gnupg gosu \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+ENV BITCOIN_VERSION=bitcoin-core-23.0
+ENV BITCOIN_DATA=/home/bitcoin-core
+#https://bitcoincore.org/en/download/
+#Click the link in the list above to download the release for your platform and wait for the file to finish downloading.Download the list of cryptographic checksums
+
+RUN curl https://bitcoincore.org/bin/bitcoin-core-23.0/SHA256SUMS
+
+#Download the signatures attesting to validity of the checksums: SHA256SUMS.asc
+RUN curl https://bitcoincore.org/bin/bitcoin-core-23.0/SHA256SUMS.asc
+
+#Open a terminal (command line prompt) and Change Directory (cd) to the folder you use for downloads. For example:
+CMD mkdir /home/bitcoin-core && cd /home/bitcoin-core
+
+#Verify that the checksum of the release file is listed in the checksums file using the following command:
+RUN sha256sum --ignore-missing --check SHA256SUMS
+
+#Bitcoin releases are signed by a number of individuals, each with a unique public key. In order to recognize the validity of signatures, you must use GPG to load these public keys locally. You can find many developer keys listed in the bitcoin/bitcoin repository, which you can then load into your GPG key database.
+
+RUN gpg --keyserver hkps://keys.openpgp.org --recv-keys E777299FC265DD04793070EB944D35F9AC3DB76A
+
+#Verify that the checksums file is PGP signed by the release signing key:
+
+RUN gpg --verify SHA256SUMS.asc
+
+RUN wget https://bitcoincore.org/bin/bitcoin-core-23.0/bitcoin-23.0-x86_64-linux-gnu.tar.gz
+
+RUN tar -xzf bitcoin-23.0-x86_64-linux-gnu.tar.gz
+RUN sudo install -m 0755 -o root -g root -t /usr/local/bin bitcoin-23.0/bin/*
+RUN su -c 'install -m 0755 -o root -g root -t /usr/local/bin bitcoin-23.0/bin/*'
+VOLUME ["/home/bitcoin-core"]
+
+
+ENTRYPOINT ["/entrypoint.sh"]
+
+RUN bitcoind -version | grep "Bitcoin Core Daemon"
+
+CMD ["bitcoind"]
